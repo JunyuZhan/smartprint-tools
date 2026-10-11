@@ -165,13 +165,13 @@ class TunnelManager:
             cpath = (cf.get("config_path") or "").strip()
             if not cpath or not Path(cpath).exists():
                 raise RuntimeError("Cloudflare 配置文件不存在")
+            domain = (cf.get("domain") or "").strip()
+            if not domain:
+                raise RuntimeError("config 模式需要填写自有域名")
             self._spawn(
                 [exe, "tunnel", "--config", cpath, "run", "--no-autoupdate"],
                 lambda line: None,
             )
-            domain = (cf.get("domain") or "").strip()
-            if not domain:
-                raise RuntimeError("config 模式需要填写自有域名")
             return f"https://{domain}"
 
         # quick：免账号临时隧道

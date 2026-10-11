@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """SmartPrint 文件转换：图片/Word/WPS 文档 → PDF（统一交给打印引擎）"""
+import io
 import shutil
 import subprocess
 import tempfile
@@ -19,7 +20,7 @@ DOC_EXTS = {".doc", ".docx", ".rtf", ".wps", ".odt"}
 
 
 def image_to_pdf(src: Path, dst: Path, max_side_pt: float = 1600.0):
-    """图片 → PDF 页面（居中适配），打印时再按设置适配页面"""
+    """图片 → A4 页面 PDF（居中适配），打印时再按设置适配页面"""
     try:
         img = Image.open(src)
         img.load()
@@ -33,7 +34,15 @@ def image_to_pdf(src: Path, dst: Path, max_side_pt: float = 1600.0):
     w_pt, h_pt = max(1, int(w * scale)), max(1, int(h * scale))
     doc = fitz.open()
     page = doc.new_page(width=w_pt, height=h_pt)
-    page.insert_image(fitz.Rect(0, 0, w_pt, h_pt), filename=str(src))
+    rect = fitz.Rect(0, 0, w_pt, h_pt)
+    # 先用 Pillow 重编码为无损 PNG 字节流，避免 PyMuPDF 对
+    # webp/bmp 等格式解码失败（保证所有 Pillow 支持的图片都能转）
+    try:
+        page.insert_image(rect, filename=str(src))
+    except Exception:
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        page.insert_image(rect, stream=buf.getvalue())
     doc.save(str(dst), garbage=3, deflate=True)
     doc.close()
 
