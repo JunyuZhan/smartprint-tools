@@ -227,7 +227,7 @@ def test_jobs_list_and_get(make_app):
         assert c.get("/api/job/nope").status_code == 404
 
 
-def test_job_delete(make_app):
+def test_job_delete(make_app, monkeypatch):
     app = make_app()
     with app.test_client() as c:
         up = c.post("/api/upload", data={"file": (io.BytesIO(_png_bytes()), "a.png")},
@@ -235,13 +235,22 @@ def test_job_delete(make_app):
         jid = up.get_json()["jobs"][0]["id"]
         assert c.delete(f"/api/job/{jid}").status_code == 200
         assert c.get(f"/api/job/{jid}").status_code == 404
-        # 打印中/排队中不可删除
+        # 打印中/排队中不可删除：用阻塞的 print mock 保证任务停在打印中（消除 worker 竞态）
+        import smartprint.printer as printer_mod
+        import threading
+        gate = threading.Event()
+
+        def blocked_print(*a, **k):
+            gate.wait(5)
+
+        monkeypatch.setattr(printer_mod, "print_pdf", blocked_print)
         up2 = c.post("/api/upload", data={"file": (io.BytesIO(_png_bytes()), "b.png")},
                      content_type="multipart/form-data")
         jid2 = up2.get_json()["jobs"][0]["id"]
         c.post("/api/print", json={"job_ids": [jid2]})
         r = c.delete(f"/api/job/{jid2}")
         assert r.status_code == 400
+        gate.set()
 
 
 # ---------- 口令保护 ----------
