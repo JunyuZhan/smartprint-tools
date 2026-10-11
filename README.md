@@ -107,7 +107,7 @@ customDomains = ["print.example.com"]
 
 ## 安全提示
 
-- **公网使用时强烈建议在管理页设置访问口令**（手机端首次打开需输入）；
+- **公网使用时强烈建议在管理页设置访问口令**（手机端首次访问需输入）；
 - 本程序仅做「上传即打印」，没有删除/读取电脑文件的能力，但仍请勿把公网地址发给陌生人；
 - 上传的文件按「保留天数」（默认 7 天）自动清理。
 
@@ -146,12 +146,36 @@ Smartprint-tools/
 │   ├── autostart.py       # 开机自启
 │   ├── tray.py            # 托盘图标
 │   └── web/               # 手机页 + 管理页
+├── tests/                 # 自动化测试（63 项）
+│   ├── test_core.py       # 纯逻辑：页码/配置/转换/二维码
+│   ├── test_app_api.py    # Web API 全部路由（mock 打印机）
+│   ├── test_jobs.py       # 打印任务队列与失败路径
+│   ├── test_converters.py # 文件转换各格式与失败路径
+│   ├── test_tunnel_cfg.py # 隧道配置校验
+│   ├── smoke_check.py     # Windows 打印冒烟（手动运行）
+│   └── tunnel_check.py    # 真实隧道联调（手动运行）
 ├── config.json            # 运行配置（自动生成）
 ├── data/                  # 上传文件（自动清理）
 ├── logs/                  # 运行日志
 ├── build.bat / install.bat / smartprint.spec
-└── requirements.txt
+├── requirements.txt
+└── pytest.ini
 ```
+
+## 开发与测试
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+pip install pytest pyinstaller
+python -m pytest tests -v      # 63 项测试，Windows / Linux 均需通过
+python -m compileall -q smartprint server.py tests
+```
+
+- 提交代码前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)；
+- 发现安全问题请走 [SECURITY.md](SECURITY.md) 的私密上报流程；
+- 变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 技术栈
 
