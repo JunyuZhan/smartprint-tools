@@ -1,19 +1,37 @@
 # -*- coding: utf-8 -*-
 """打印引擎冒烟测试：验证打印机枚举 / DEVMODE / DC / 页面渲染（仅 Windows 手动运行）"""
+# 手动脚本，不作为 pytest 测试模块收集（Windows 专用，顶层代码会调用打印 API）
+__test__ = False
+
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-print("\n== 打印机枚举 ==")
 from smartprint import printer
-names = printer.list_printers()
-print("打印机列表：", names)
-print("默认打印机：", printer.get_default_printer())
 
-print("\n== 页码解析 ==")
-print('1-3,5 →', printer.parse_page_range("1-3,5", 10))
-print('空 →', printer.parse_page_range("", 5))
+print("== 打印机列表 ==")
+print(printer.list_printers())
+pname = printer.resolve_printer("")
+print("resolve ->", pname)
+
+print("\n== DEVMODE 构造 ==")
+dm_bytes = printer.build_devmode(pname, {"color": "mono", "duplex": "long", "copies": 3})
+print("DEVMODE 字节数:", len(dm_bytes))
+
+print("\n== PrinterDC 创建 + 页面参数 ==")
+pdc = printer.PrinterDC(pname, {"color": "mono", "duplex": "long", "copies": 2})
+print("页面(px):", pdc.page_size())
+print("打印机DPI:", pdc.dpi())
+pdc.close()
+print("PrinterDC OK")
+
+print("\n== 页码范围解析 ==")
+assert printer.parse_page_range("1-3,5", 10) == [0, 1, 2, 4]
+assert printer.parse_page_range("", 5) == [0, 1, 2, 3, 4]
+assert printer.parse_page_range("8-9", 5) == [0, 1, 2, 3, 4]
+assert printer.parse_page_range("3", 5) == [2]
+print("parse_page_range OK")
 
 print("\n== PDF 渲染 ==")
 import pymupdf as fitz
@@ -28,16 +46,5 @@ doc.save(smoke_pdf)
 doc.close()
 settings = {"color": "color", "duplex": "single", "copies": 1, "fit": "fit", "pages": ""}
 images = list(printer.pdf_page_images(smoke_pdf, settings))
-print(f"渲染页数：{len(images)}")
-
-print("\n== DEVMODE / DC ==")
-pname = printer.resolve_printer("")
-print("目标打印机：", pname)
-dev = printer.build_devmode(pname, {"color": "mono", "duplex": "long", "copies": 2})
-print("DEVMODE 长度：", len(dev))
-with printer.PrinterDC(pname, {"color": "mono", "duplex": "single", "copies": 1}) as dc:
-    print("DC 分辨率：", dc.dpi_x, "x", dc.dpi_y, " 页面：", dc.page_w, "x", dc.page_h)
-
-print("\n== 实际打印（约 10 秒） ==")
-printer.print_pdf(smoke_pdf, pname, settings)
-print("已提交打印，请检查打印机输出。")
+print("渲染页数:", len(images), "首页尺寸:", images[0][2].size)
+print("\n全部通过 ✅")

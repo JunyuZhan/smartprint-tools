@@ -21,7 +21,7 @@ jobs:
       - name: 语法检查
         run: python -m compileall -q smartprint server.py tests
       - name: 单元测试
-        run: python -m pytest tests -v
+        run: python -m pytest tests/test_core.py -v
 
   build:
     name: 打包 Windows 绿色版
