@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SmartPrint 管理页</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root { --blue:#2178ff; --bg:#f2f5f9; --card:#fff; --line:#e5e9f0; --text:#1f2733; --sub:#8a94a6; --ok:#12b76a; --err:#f04438; --warn:#f79009; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); }
+  .wrap { max-width:900px; margin:0 auto; padding:20px 16px 60px; }
+  h1 { font-size:20px; display:flex; align-items:center; gap:10px; }
+  h1 small { font-weight:400; color:var(--sub); font-size:12px; }
+  .tabs { display:flex; gap:6px; margin:18px 0; background:#e8ecf3; padding:5px; border-radius:12px; }
+  .tabs button { flex:1; border:0; background:transparent; padding:10px 0; border-radius:9px; font-size:14px; color:var(--sub); cursor:pointer; }
+  .tabs button.on { background:#fff; color:var(--blue); font-weight:600; box-shadow:0 1px 5px rgba(20,40,90,.1); }
+  .tab { display:none; } .tab.on { display:block; }
+  .card { background:var(--card); border-radius:14px; padding:18px; margin-bottom:14px; box-shadow:0 2px 8px rgba(20,40,90,.05); }
+  .card h3 { font-size:14px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .kv { display:flex; justify-content:space-between; padding:7px 0; font-size:14px; border-bottom:1px dashed var(--line); }
+  .kv:last-child { border-bottom:0; }
+  .kv .k { color:var(--sub); } .kv .v { font-weight:500; word-break:break-all; text-align:right; }
+  .qrbox { display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
+  .qrbox img { width:220px; height:220px; border:1px solid var(--line); border-radius:12px; background:#fff; }
+  .btn { border:0; border-radius:10px; padding:10px 18px; font-size:14px; cursor:pointer; }
+  .btn-p { background:var(--blue); color:#fff; }
+  .btn-g { background:#eef1f6; color:var(--text); }
+  .btn-r { background:#fdeceb; color:var(--err); }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  label { display:block; font-size:13px; color:var(--sub); margin:12px 0 6px; }
+  input, select { width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px; background:#fbfcfe; outline:none; }
+  input:focus, select:focus { border-color:var(--blue); }
+  .hint { font-size:12px; color:var(--sub); margin-top:5px; line-height:1.6; }
+  .ok { color:var(--ok); } .err { color:var(--err); } .warn { color:var(--warn); }
+  .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; }
+  .badge.run { background:#e2f8ee; color:var(--ok); } .badge.err { background:#fdeceb; color:var(--err); }
+  .badge.idle { background:#eef1f6; color:var(--sub); } .badge.starting { background:#fdf1e0; color:var(--warn); }
+  pre.log { background:#0f172a; color:#c9d6ec; border-radius:10px; padding:14px; font-size:12px; max-height:520px; overflow:auto; line-height:1.7; white-space:pre-wrap; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 20px; }
+  @media (max-width:640px){ .grid2{grid-template-columns:1fr;} }
+  .sec-title { font-size:14px; font-weight:600; margin:18px 0 8px; color:var(--sub); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
+  th { color:var(--sub); font-weight:500; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🖨 SmartPrint 管理页 <small>仅本机可访问</small></h1>
+  <div class="tabs">
+    <button data-t="status" class="on">状态</button>
+    <button data-t="settings">设置</button>
+    <button data-t="test">测试</button>
+    <button data-t="jobs">任务</button>
+    <button data-t="log">日志</button>
+  </div>
+
+  <!-- 状态 -->
+  <div class="tab on" id="tab-status">
+    <div class="card">
+      <h3>访问地址与二维码</h3>
+      <div class="qrbox">
+        <img id="qrImg" alt="二维码">
+        <div style="flex:1;min-width:260px;">
+          <div class="kv"><span class="k">访问方式</span><span class="v" id="stMode">-</span></div>
+          <div class="kv"><span class="k">隧道状态</span><span class="v" id="stTunnel">-</span></div>
+          <div class="kv"><span class="k">公网地址</span><span class="v" id="stPublic">-</span></div>
+          <div class="kv"><span class="k">局域网地址</span><span class="v" id="stLan">-</span></div>
+          <div class="kv"><span class="k">默认打印机</span><span class="v" id="stPrinter">-</span></div>
+          <div class="kv"><span class="k">已上传文件数</span><span class="v" id="stJobs">-</span></div>
+          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-p" id="btnPoster">🖨 打印二维码海报（贴墙）</button>
+            <button class="btn btn-g" id="btnRefresh">刷新</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置 -->
+  <div class="tab" id="tab-settings">
+    <div class="card">
+      <h3>基本设置</h3>
+      <div class="grid2">
+        <div>
+          <label>打印机（留空 = 系统默认）</label>
+          <select id="cfgPrinter"></select>
+        </div>
+        <div>
+          <label>页面名称（手机端显示）</label>
+          <input id="cfgOffice" placeholder="扫码打印">
+        </div>
+        <div>
+          <label>监听端口（改动需重启生效）</label>
+          <input id="cfgPort" type="number" min="1" max="65535">
+        </div>
+        <div>
+          <label>单文件大小上限（MB）</label>
+          <input id="cfgMaxMb" type="number" min="1" max="500">
+        </div>
+        <div>
+          <label>访问口令（留空 = 不启用，公网建议开启）</label>
+          <input id="cfgPin" type="text" placeholder="例如 123456">
+        </div>
+        <div>
+          <label>文件保留天数</label>
+          <input id="cfgClean" type="number" min="0" max="60">
+        </div>
+        <div style="grid-column:1 / -1;">
+          <label style="display:flex;align-items:center;gap:8px;color:var(--text);font-size:14px;">
+            <input type="checkbox" id="cfgAutostart" style="width:auto;"> 随系统开机自动启动
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>网络访问方式</h3>
+      <label>访问方式</label>
+      <select id="cfgMode">
+        <option value="lan">局域网直连（仅办公室内网）</option>
+        <option value="cloudflare">Cloudflare 隧道（公网）</option>
+        <option value="frp">FRP 穿透（公网）</option>
+        <option value="custom">自定义公网地址（反向代理等）</option>
+      </select>
+
+      <div id="cfBox" style="display:none;">
+        <label>Cloudflare 模式</label>
+        <select id="cfMode">
+          <option value="quick">Quick Tunnel（免账号临时地址）</option>
+          <option value="token">Named Tunnel（tunnel token）</option>
+          <option value="config">Named Tunnel（配置文件）</option>
+        </select>
+        <label>cloudflared.exe 路径（留空自动查找/下载）</label>
+        <input id="cfExe" placeholder="如 D:\tools\cloudflared.exe">
+        <label>自有域名（token / config 模式）</label>
+        <input id="cfDomain" placeholder="如 print.example.com">
+        <label>Tunnel Token（token 模式）</label>
+        <input id="cfToken" type="password" placeholder="cloudflared tunnel token">
+        <label>cloudflared 配置文件（config 模式）</label>
+        <input id="cfConfig" placeholder="如 D:\tools\cloudflared.yml">
+        <div class="hint">Quick Tunnel 无需账号，重启后地址会变化，需重新打印海报；token/config 模式地址固定。</div>
+      </div>
+
+      <div id="frpBox" style="display:none;">
+        <label>frpc.exe 路径</label>
+        <input id="frpExe" placeholder="如 D:\tools\frpc.exe">
+        <label>frpc 配置文件路径</label>
+        <input id="frpConfig" placeholder="如 D:\tools\frpc.toml">
+        <label>公网域名（二维码指向地址）</label>
+        <input id="frpDomain" placeholder="如 print.example.com">
+        <div class="hint">请自行在 frpc.toml 中把本地端口映射到当前监听端口。</div>
+      </div>
+
+      <div id="customBox" style="display:none;">
+        <label>自定义公网地址</label>
+        <input id="cfgCustom" placeholder="如 https://print.example.com">
+        <div class="hint">该地址需要已映射到本机端口（任意反向代理 / 端口转发均可）。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>默认打印设置（手机端初始值）</h3>
+      <div class="grid2">
+        <div><label>默认色彩</label>
+          <select id="pdColor"><option value="color">彩色</option><option value="mono">黑白</option></select>
+        </div>
+        <div><label>默认双面</label>
+          <select id="pdDuplex"><option value="single">单面</option><option value="long">双面·长边</option><option value="short">双面·短边</option></select>
+        </div>
+        <div><label>默认份数</label><input id="pdCopies" type="number" min="1" max="99"></div>
+        <div><label>默认图片方向</label>
+          <select id="pdOrient"><option value="auto">自动</option><option value="portrait">纵向</option><option value="landscape">横向</option></select>
+        </div>
+        <div><label>默认图片大小</label>
+          <select id="pdFit"><option value="fit">适合页面</option><option value="fill">填满页面</option><option value="original">原尺寸</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:4px;">
+      <button class="btn btn-p" id="btnSave">保存设置</button>
+      <button class="btn btn-g" id="btnRestartTunnel">重启隧道</button>
+    </div>
+    <div class="hint" id="saveMsg" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- 测试 -->
+  <div class="tab" id="tab-test">
+    <div class="card">
+      <h3>打印测试</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-p" id="btnTestPrint">打印测试页</button>
+        <button class="btn btn-g" id="btnPoster2">打印二维码海报</button>
+      </div>
+      <div class="hint" id="testMsg" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <!-- 任务 -->
+  <div class="tab" id="tab-jobs">
+    <div class="card">
+      <h3>最近打印任务</h3>
+      <table>
+        <thead><tr><th>时间</th><th>文件</th><th>状态</th><th>打印机</th><th>错误</th></tr></thead>
+        <tbody id="jobsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 日志 -->
+  <div class="tab" id="tab-log">
+    <div class="card">
+      <h3>运行日志</h3>
+      <pre class="log" id="logBox"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let CFG = null;
+
+// tabs
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById('tab-'+b.dataset.t).classList.add('on');
+    if(b.dataset.t==='status') loadStatus();
+    if(b.dataset.t==='jobs') loadJobs();
+    if(b.dataset.t==='log') loadLog();
+  };
+});
+
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  return r.json();
+}
+
+// ---------- 状态 ----------
+function badge(s){
+  const map = {running:'run', error:'err', idle:'idle', starting:'starting'};
+  const txt = {running:'运行中', error:'错误', idle:'未启动', starting:'启动中…'};
+  return `<span class="badge ${map[s]||'idle'}">${txt[s]||s}</span>`;
+}
+async function loadStatus(){
+  try{
+    const d = await api('/api/admin/state');
+    const st = d.state, jobs = d.jobs;
+    $('#stMode').textContent = {lan:'局域网', cloudflare:'Cloudflare', frp:'FRP', custom:'自定义'}[st.mode] || st.mode;
+    $('#stTunnel').innerHTML = badge(st.status) + (st.error ? ` <span class="err">${esc(st.error)}</span>` : '');
+    $('#stPublic').textContent = st.public_url || '（无，仅局域网）';
+    $('#stLan').innerHTML = (st.lan_urls||[]).map(esc).join('<br>') || '（未检测到）';
+    $('#stPrinter').textContent = CFG?.printer || '（系统默认）';
+    $('#stJobs').textContent = jobs.filter(j=>['uploaded','queued','printing'].includes(j.status)).length + ' 个待处理';
+    const url = st.public_url || (st.lan_urls||[])[0];
+    $('#qrImg').src = url ? '/api/admin/qr?url=' + encodeURIComponent(url) : '';
+  }catch(e){}
+}
+$('#btnRefresh').onclick = loadStatus;
+
+// ---------- 设置 ----------
+async function loadSettings(){
+  const d = await api('/api/admin/config');
+  CFG = d.config;
+  const c = CFG;
+  $('#cfgPrinter').innerHTML = '<option value="">（系统默认打印机）</option>';
+  try{
+    const pc = await api('/api/config');
+    (pc.printers||[]).forEach(p=>{
+      const o = document.createElement('option'); o.value=p; o.textContent=p; $('#cfgPrinter').appendChild(o);
+    });
+  }catch(e){}
+  $('#cfgPrinter').value = c.printer || '';
+  $('#cfgOffice').value = c.office_name || '';
+  $('#cfgPort').value = c.port || 8866;
+  $('#cfgMaxMb').value = c.max_upload_mb || 50;
+  $('#cfgPin').value = c.pin || '';
+  $('#cfgClean').value = c.clean_days ?? 7;
+  $('#cfgAutostart').checked = !!c.autostart;
+  $('#cfgMode').value = c.access_mode || 'lan';
+  $('#cfgCustom').value = c.custom_url || '';
+  const cf = c.cloudflare||{}, frp = c.frp||{};
+  $('#cfMode').value = cf.mode || 'quick';
+  $('#cfExe').value = cf.exe_path || '';
+  $('#cfDomain').value = cf.domain || '';
+  $('#cfToken').value = cf.token || '';
+  $('#cfConfig').value = cf.config_path || '';
+  $('#frpExe').value = frp.exe_path || '';
+  $('#frpConfig').value = frp.config_path || '';
+  $('#frpDomain').value = frp.domain || '';
+  const pd = c.print_defaults||{};
+  $('#pdColor').value = pd.color || 'color';
+  $('#pdDuplex').value = pd.duplex || 'single';
+  $('#pdCopies').value = pd.copies || 1;
+  $('#pdOrient').value = pd.orientation || 'auto';
+  $('#pdFit').value = pd.fit || 'fit';
+  syncModeUI();
+}
+function syncModeUI(){
+  const m = $('#cfgMode').value;
+  $('#cfBox').style.display = m==='cloudflare' ? '' : 'none';
+  $('#frpBox').style.display = m==='frp' ? '' : 'none';
+  $('#customBox').style.display = m==='custom' ? '' : 'none';
+}
+$('#cfgMode').onchange = syncModeUI;
+
+$('#btnSave').onclick = async ()=>{
+  $('#saveMsg').textContent = '保存中…';
+  const config = {
+    printer: $('#cfgPrinter').value,
+    office_name: $('#cfgOffice').value.trim() || '扫码打印',
+    port: +$('#cfgPort').value || 8866,
+    max_upload_mb: +$('#cfgMaxMb').value || 50,
+    pin: $('#cfgPin').value.trim(),
+    clean_days: +$('#cfgClean').value || 7,
+    autostart: $('#cfgAutostart').checked,
+    access_mode: $('#cfgMode').value,
+    custom_url: $('#cfgCustom').value.trim(),
+    cloudflare: {
+      mode: $('#cfMode').value,
+      exe_path: $('#cfExe').value.trim(),
+      domain: $('#cfDomain').value.trim(),
+      token: $('#cfToken').value.trim(),
+      config_path: $('#cfConfig').value.trim(),
+    },
+    frp: {
+      exe_path: $('#frpExe').value.trim(),
+      config_path: $('#frpConfig').value.trim(),
+      domain: $('#frpDomain').value.trim(),
+    },
+    print_defaults: {
+      color: $('#pdColor').value,
+      duplex: $('#pdDuplex').value,
+      copies: Math.min(99, Math.max(1, +$('#pdCopies').value || 1)),
+      orientation: $('#pdOrient').value,
+      fit: $('#pdFit').value,
+    }
+  };
+  try{
+    const d = await api('/api/admin/config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({config})});
+    if(d.ok){
+      $('#saveMsg').innerHTML = `<span class="ok">✓ ${d.note||'已保存'}</span>`;
+      setTimeout(()=>{ $('#saveMsg').textContent=''; }, 4000);
+    } else $('#saveMsg').innerHTML = `<span class="err">保存失败：${esc(d.error||'')}</span>`;
+  }catch(e){
+    $('#saveMsg').innerHTML = `<span class="err">保存失败：${esc(e.message)}</span>`;
+  }
+};
+$('#btnRestartTunnel').onclick = async ()=>{
+  $('#saveMsg').textContent = '正在重启隧道…';
+  await api('/api/admin/restart_tunnel', {method:'POST'});
+  setTimeout(loadStatus, 2000);
+};
+
+// ---------- 测试 ----------
+$('#btnTestPrint').onclick = async ()=>{
+  $('#testMsg').textContent = '正在打印测试页…';
+  const d = await api('/api/admin/print_test', {method:'POST'});
+  $('#testMsg').innerHTML = d.ok
+    ? `<span class="ok">✓ 已提交打印（打印机：${esc(d.printer)}），请到打印机取件确认。</span>`
+    : `<span class="err">打印失败：${esc(d.error||'')}</span>`;
+};
+$('#btnPoster').onclick = $('#btnPoster2').onclick = async ()=>{
+  $('#testMsg').textContent = '正在打印二维码海报…';
+  const d = await api('/api/admin/print_poster', {method:'POST'});
+  $('#testMsg').innerHTML = d.ok
+    ? '<span class="ok">✓ 海报已打印，请贴到墙上。</span>'
+    : `<span class="err">打印失败：${esc(d.error||'')}</span>`;
+};
+
+// ---------- 任务 ----------
+async function loadJobs(){
+  const d = await api('/api/jobs');
+  const stMap = {uploaded:'待打印', queued:'排队中', printing:'打印中', done:'完成', failed:'失败'};
+  const clsMap = {uploaded:'', queued:'warn', printing:'', done:'ok', failed:'err'};
+  $('#jobsBody').innerHTML = (d.jobs||[]).slice(0,50).map(j=>`
+    <tr>
+      <td>${esc(j.created)}</td>
+      <td>${esc(j.name)}</td>
+      <td class="${clsMap[j.status]||''}">${stMap[j.status]||j.status}</td>
+      <td>${esc(j.printer||'')}</td>
+      <td class="err">${esc(j.error||'')}</td>
+    </tr>`).join('') || '<tr><td colspan="5">暂无任务</td></tr>';
+}
+
+// ---------- 日志 ----------
+async function loadLog(){
+  const d = await api('/api/admin/log');
+  $('#logBox').textContent = d.log || '';
+}
+
+function esc(s){ const d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
+
+loadSettings();
+loadStatus();
+</script>
+</body>
+</html>
