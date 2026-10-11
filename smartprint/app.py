@@ -20,7 +20,9 @@ _INVALID_NAME = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 
 def _safe_name(name: str) -> str:
-    name = Path(name or "file").name
+    # 手动切分路径：把 \ 统一成 / 再取最后一段，
+    # 保证 Windows / Linux 对反斜杠分隔符的处理一致（跨平台测试通过）
+    name = (name or "file").replace("\\", "/").rsplit("/", 1)[-1]
     name = _INVALID_NAME.sub("_", name).strip(" .")
     return name or "file"
 
